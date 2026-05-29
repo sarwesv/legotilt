@@ -42,9 +42,6 @@ function initPhysics() {
     Render.run(render);
     runner = Runner.create();
     Runner.run(runner, engine);
-
-    // Start orientation listener
-    initTiltControls();
 }
 
 /**
@@ -99,30 +96,37 @@ function initTiltControls() {
 }
 
 /**
- * Handle First Tap / Interaction
+ * Handle First Tap / Interaction (Strict Click for iOS)
  */
-window.addEventListener('pointerdown', async () => {
-    // 1. Initial Setup
+let permissionRequested = false;
+
+window.addEventListener('click', async () => {
+    // 1. Request Sensor Access (MUST BE FIRST and ON CLICK for iOS)
+    if (!permissionRequested && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+            const permission = await DeviceOrientationEvent.requestPermission();
+            if (permission === 'granted') {
+                permissionRequested = true;
+                initTiltControls();
+            }
+        } catch (error) {
+            console.error("Sensor request failed:", error);
+        }
+    } else if (!permissionRequested) {
+        // For non-iOS or browsers that don't need explicit requestPermission
+        initTiltControls();
+        permissionRequested = true;
+    }
+
+    // 2. Initial Setup
     if (!initialized) {
         initPhysics();
         initialized = true;
     }
 
-    // 2. Request Sensor Access (iOS)
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        try {
-            const permission = await DeviceOrientationEvent.requestPermission();
-            if (permission !== 'granted') {
-                console.warn('Sensor access denied');
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    }
-
     // 3. Drop Bricks & Hide Instructions
     isPlaying = true;
-    dropBricks(20); // Drop 20 more bricks on each tap
+    dropBricks(20); 
     
     if (instructionOverlay.style.display !== 'none') {
         anime({
@@ -136,6 +140,10 @@ window.addEventListener('pointerdown', async () => {
         });
     }
 });
+
+// Remove the old pointerdown listener
+// (The replacement above replaces the logic)
+
 
 // Resize handler
 window.addEventListener('resize', () => {
