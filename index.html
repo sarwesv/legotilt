@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LegoTilt | Interactive Physics</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Physics Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <!-- Animation Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+</head>
+<body>
+    <div id="ui-overlay">
+        <div class="card">
+            <h1>LegoTilt</h1>
+            <p>Tilt your device to move the bricks.</p>
+            <button id="start-btn">Drop Bricks</button>
+        </div>
+    </div>
+    
+    <div id="canvas-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
