@@ -1,26 +1,23 @@
 /**
- * LegoTilt - Matter.js Physics Engine & Animation Logic
+ * LegoTilt - Matter.js Physics Engine & Interaction Logic
  */
 
-// Matter.js alias
-const { Engine, Render, Runner, Bodies, Composite, World, Events } = Matter;
+const { Engine, Render, Runner, Bodies, Composite, World } = Matter;
 
 let engine, render, runner;
 let initialized = false;
+let isPlaying = false;
 
-// UI Elements
-const uiOverlay = document.getElementById('ui-overlay');
-const startBtn = document.getElementById('start-btn');
+const instructionOverlay = document.getElementById('instruction-overlay');
 
 /**
  * Initialize Physics World
  */
 function initPhysics() {
-    // 1. Create Engine
     engine = Engine.create();
-    engine.gravity.scale = 0.001; // Default gravity
+    // Increase gravity scale for more "weight"
+    engine.gravity.scale = 0.0015;
 
-    // 2. Create Renderer
     render = Render.create({
         element: document.getElementById('canvas-container'),
         engine: engine,
@@ -33,7 +30,7 @@ function initPhysics() {
         }
     });
 
-    // 3. Create Boundaries
+    // Boundaries (Fixed for window size)
     const thick = 100;
     const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + thick/2, window.innerWidth, thick, { isStatic: true });
     const leftWall = Bodies.rectangle(-thick/2, window.innerHeight / 2, thick, window.innerHeight, { isStatic: true });
@@ -42,14 +39,10 @@ function initPhysics() {
 
     Composite.add(engine.world, [ground, leftWall, rightWall, ceiling]);
 
-    // 4. Run the Engine
     Render.run(render);
     runner = Runner.create();
     Runner.run(runner, engine);
 
-    // Initial drop
-    dropBricks(50);
-    
     // Start orientation listener
     initTiltControls();
 }
@@ -58,7 +51,7 @@ function initPhysics() {
  * Create and drop random LEGO bricks
  */
 function dropBricks(count) {
-    const legoColors = ['#ef4444', '#3b82f6', '#facc15', '#22c55e', '#ffffff'];
+    const legoColors = ['#ef4444', '#3b82f6', '#facc15', '#22c55e', '#ffffff', '#ff00ff', '#00ffff'];
     const bricks = [];
 
     for (let i = 0; i < count; i++) {
@@ -68,18 +61,18 @@ function dropBricks(count) {
         
         const brick = Bodies.rectangle(
             Math.random() * window.innerWidth,
-            -100 - (Math.random() * 500),
+            -50 - (Math.random() * 400),
             width,
             height,
             {
                 render: {
                     fillStyle: legoColors[Math.floor(Math.random() * legoColors.length)],
-                    strokeStyle: 'rgba(0,0,0,0.1)',
+                    strokeStyle: 'rgba(255,255,255,0.1)',
                     lineWidth: 1
                 },
-                friction: 0.8,
-                restitution: 0.2,
-                density: 0.01
+                friction: 0.1, // Lower friction for better sliding on tilt
+                restitution: 0.3, // Slight bounce
+                density: 0.001
             }
         );
         bricks.push(brick);
@@ -97,8 +90,8 @@ function initTiltControls() {
 
         // Front-to-back tilt (range -180 to 180) -> Y gravity
         // Left-to-right tilt (range -90 to 90) -> X gravity
-        const gravityX = event.gamma / 45; // Normalize to approx -2 to 2
-        const gravityY = event.beta / 45;
+        const gravityX = (event.gamma || 0) / 30; 
+        const gravityY = (event.beta || 0) / 30;
 
         engine.gravity.x = gravityX;
         engine.gravity.y = gravityY;
@@ -106,40 +99,42 @@ function initTiltControls() {
 }
 
 /**
- * UI & Start Logic
+ * Handle First Tap / Interaction
  */
-let isPlaying = false;
+window.addEventListener('pointerdown', async () => {
+    // 1. Initial Setup
+    if (!initialized) {
+        initPhysics();
+        initialized = true;
+    }
 
-startBtn.addEventListener('click', async () => {
-    // iOS Permission Request
+    // 2. Request Sensor Access (iOS)
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         try {
             const permission = await DeviceOrientationEvent.requestPermission();
             if (permission !== 'granted') {
-                alert('Permission to access sensors was denied.');
-                return;
+                console.warn('Sensor access denied');
             }
         } catch (error) {
             console.error(error);
         }
     }
 
-    // Anime.js transition
-    anime({
-        targets: '#ui-overlay',
-        opacity: 0,
-        translateY: -50,
-        duration: 800,
-        easing: 'easeInOutQuint',
-        complete: () => {
-            uiOverlay.style.display = 'none';
-            isPlaying = true;
-            if (!initialized) {
-                initPhysics();
-                initialized = true;
+    // 3. Drop Bricks & Hide Instructions
+    isPlaying = true;
+    dropBricks(20); // Drop 20 more bricks on each tap
+    
+    if (instructionOverlay.style.display !== 'none') {
+        anime({
+            targets: '#instruction-overlay',
+            opacity: 0,
+            duration: 1000,
+            easing: 'easeOutQuad',
+            complete: () => {
+                instructionOverlay.style.display = 'none';
             }
-        }
-    });
+        });
+    }
 });
 
 // Resize handler
@@ -147,5 +142,6 @@ window.addEventListener('resize', () => {
     if (render) {
         render.canvas.width = window.innerWidth;
         render.canvas.height = window.innerHeight;
+        // In a real app, you'd update wall positions here too
     }
 });
